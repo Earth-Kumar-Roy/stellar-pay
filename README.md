@@ -113,7 +113,7 @@ The application performs multiple client-side validations before creating a tran
 
 > Replace the image below with your latest screenshot.
 
-[Application Preview](public/screenshots/app-preview.jpg)
+[Application Preview](https://github.com/Earth-Kumar-Roy/stellar-pay/blob/main/public/screenshots/StellerPay%20Front%20Page.jpeg)
 
 ---
 
