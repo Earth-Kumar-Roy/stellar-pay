@@ -111,7 +111,7 @@ The application performs multiple client-side validations before creating a tran
 
 # 🖥 Application Preview
 
-> Replace the image below with your latest screenshot.
+> Screenshot which shows a connected wallet, available XLMs, Transaction History and the dApp Page.
 
 [Application Preview](https://github.com/Earth-Kumar-Roy/stellar-pay/blob/main/public/screenshots/StellerPay%20Front%20Page.jpeg)
 
