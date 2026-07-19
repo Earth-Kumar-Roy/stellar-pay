@@ -1,5 +1,6 @@
 import {
   isConnected,
+  isAllowed,
   requestAccess,
   getAddress,
   signTransaction,
@@ -7,24 +8,39 @@ import {
 
 import * as StellarSdk from "@stellar/stellar-sdk";
 
-
 const server = new StellarSdk.Horizon.Server(
   "https://horizon-testnet.stellar.org"
 );
 
-// Check if Freighter is available
+// Check Freighter installation
 export async function checkFreighter() {
   try {
-    return await isConnected();
-  } catch (error) {
-    console.error(error);
+    const result = await isConnected();
+    return result.isConnected;
+  } catch {
     return false;
   }
 }
 
-// Connect wallet
+// Connect Wallet
 export async function connectWallet() {
   try {
+    const installed = await isConnected();
+
+    if (!installed.isConnected) {
+      throw new Error(
+        "Freighter Wallet is not installed. Install it from https://www.freighter.app/"
+      );
+    }
+
+    const allowed = await isAllowed();
+
+    if (!allowed.isAllowed) {
+      throw new Error(
+        "Please allow this website inside Freighter."
+      );
+    }
+
     const access = await requestAccess();
 
     if (access.error) {
@@ -35,33 +51,33 @@ export async function connectWallet() {
 
     return address;
   } catch (error) {
-    console.error(error);
-    return null;
+    throw error;
   }
 }
 
-// Get XLM balance
+// Get Balance
 export async function getBalance(address) {
   try {
-    console.log("Wallet Address:", address);
+    if (
+      !StellarSdk.StrKey.isValidEd25519PublicKey(address)
+    ) {
+      throw new Error("Invalid Stellar address.");
+    }
 
     const account = await server.loadAccount(address);
 
-    console.log(account);
-
-    const nativeBalance = account.balances.find(
+    const native = account.balances.find(
       (asset) => asset.asset_type === "native"
     );
 
-    console.log("Native Balance:", nativeBalance);
-
-    return nativeBalance ? nativeBalance.balance : "0";
+    return native ? native.balance : "0";
   } catch (error) {
-    console.error("Balance Error:", error);
+    console.error(error);
     return "0";
   }
 }
 
+// Send Payment
 export async function sendPayment(
   sender,
   destination,
@@ -69,8 +85,51 @@ export async function sendPayment(
   memo = ""
 ) {
   try {
+    // Validate recipient address
+    if (!StellarSdk.StrKey.isValidEd25519PublicKey(destination)) {
+      throw new Error("Invalid recipient Stellar address.");
+    }
+
+    // Cannot send to yourself
+    if (sender.trim() === destination.trim()) {
+      throw new Error("You cannot send XLM to your own wallet.");
+    }
+
+    // Validate amount
+    const sendAmount = Number(amount);
+
+    if (isNaN(sendAmount) || sendAmount <= 0) {
+      throw new Error("Amount must be greater than 0 XLM.");
+    }
+
+    // Load latest account data
     const sourceAccount = await server.loadAccount(sender);
 
+    // Get current XLM balance
+    const nativeBalance = sourceAccount.balances.find(
+      (asset) => asset.asset_type === "native"
+    );
+
+    const currentBalance = Number(nativeBalance.balance);
+
+    // Keep 1 XLM reserved
+    const reserve = 1;
+    const spendableBalance = currentBalance - reserve;
+
+    if (sendAmount > spendableBalance) {
+      throw new Error(
+        `Insufficient balance. Available to spend: ${spendableBalance.toFixed(
+          7
+        )} XLM`
+      );
+    }
+
+    // Memo validation
+    if (memo.length > 28) {
+      throw new Error("Memo cannot exceed 28 characters.");
+    }
+
+    // Build transaction
     const transaction = new StellarSdk.TransactionBuilder(
       sourceAccount,
       {
@@ -82,32 +141,30 @@ export async function sendPayment(
         StellarSdk.Operation.payment({
           destination,
           asset: StellarSdk.Asset.native(),
-          amount,
+          amount: sendAmount.toFixed(7),
         })
       )
       .addMemo(StellarSdk.Memo.text(memo))
       .setTimeout(30)
       .build();
 
-    const signed = await signTransaction(
-      transaction.toXDR(),
-      {
-        networkPassphrase: StellarSdk.Networks.TESTNET,
-        address: sender,
-      }
-    );
+    // Sign with Freighter
+    const signed = await signTransaction(transaction.toXDR(), {
+      networkPassphrase: StellarSdk.Networks.TESTNET,
+      address: sender,
+    });
 
     if (signed.error) {
       throw new Error(signed.error);
     }
 
     const signedTx = StellarSdk.TransactionBuilder.fromXDR(
-        signed.signedTxXdr,
-        StellarSdk.Networks.TESTNET
+      signed.signedTxXdr,
+      StellarSdk.Networks.TESTNET
     );
 
-    const response =
-      await server.submitTransaction(signedTx);
+    // Submit transaction
+    const response = await server.submitTransaction(signedTx);
 
     return {
       success: true,
@@ -116,26 +173,48 @@ export async function sendPayment(
   } catch (error) {
     console.error(error);
 
+    let errorMessage = "Transaction failed.";
+
+    if (error.response?.data?.extras?.result_codes?.operations) {
+      errorMessage =
+        error.response.data.extras.result_codes.operations.join(", ");
+    } else if (error.message) {
+      errorMessage = error.message;
+    }
+
     return {
       success: false,
-      error: error.message,
+      error: errorMessage,
     };
   }
 }
 
+// Recent Payments
 export async function getTransactions(address) {
   try {
+    if (
+      !StellarSdk.StrKey.isValidEd25519PublicKey(address)
+    ) {
+      return [];
+    }
+
     const response = await fetch(
       `https://horizon-testnet.stellar.org/accounts/${address}/payments?limit=10&order=desc`
     );
 
+    if (!response.ok) {
+      throw new Error(
+        "Unable to fetch transaction history."
+      );
+    }
+
     const data = await response.json();
 
-    const payments = data._embedded.records.filter(
-      (payment) => payment.type === "payment" && payment.asset_type === "native"
+    return data._embedded.records.filter(
+      (payment) =>
+        payment.type === "payment" &&
+        payment.asset_type === "native"
     );
-
-    return payments;
   } catch (error) {
     console.error(error);
     return [];
