@@ -113,7 +113,7 @@ The application performs multiple client-side validations before creating a tran
 
 > Replace the image below with your latest screenshot.
 
-![Application Preview](public/screenshots/app-preview.jpg)
+[Application Preview](public/screenshots/app-preview.jpg)
 
 ---
 
@@ -274,62 +274,6 @@ Approve the transaction inside Freighter Wallet.
 
 ---
 
-# 🔄 Transaction Workflow
-
-```text
-User
-
-↓
-
-Connect Wallet
-
-↓
-
-Freighter Authentication
-
-↓
-
-Retrieve Wallet Address
-
-↓
-
-Fetch XLM Balance
-
-↓
-
-Enter Payment Details
-
-↓
-
-Validate Input
-
-↓
-
-Build Transaction
-
-↓
-
-Sign Transaction
-
-↓
-
-Broadcast to Stellar Testnet
-
-↓
-
-Receive Transaction Hash
-
-↓
-
-Refresh Balance
-
-↓
-
-Refresh Transaction History
-```
-
----
-
 # 🔒 Security
 
 The application validates the following before sending a transaction.
@@ -432,18 +376,11 @@ https://github.com/Earth-Kumar-Roy
 
 ---
 
-# 📜 License
-
-This project is released under the **MIT License**.
-
-It is intended for educational purposes as part of the Stellar Developer Program.
-
----
 
 <div align="center">
 
 ### ⭐ Thank you for visiting StellarPay ⭐
 
-Built with ❤️ using React, Freighter Wallet, and the Stellar Network.
+Built by EKR with ❤️ using React, Freighter Wallet, and the Stellar Network.
 
 </div>
